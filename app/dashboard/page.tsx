@@ -1,21 +1,28 @@
-import Link from "next/link"
-import { AlertTriangle, ArrowRight, Banknote, Flame, LineChart, Wallet } from "lucide-react"
-import { metrics, burnData, transactions } from "@/lib/mock-data"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+import Link from "next/link";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Banknote,
+  Flame,
+  LineChart,
+  Wallet,
+} from "lucide-react";
+import { metrics, burnData, transactions } from "@/lib/mock-data";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
-  }).format(value)
+  }).format(value);
 }
 
 export default function DashboardPage() {
   const topAlerts = transactions
     .filter((transaction) => transaction.anomalyScore > 50)
-    .sort((a, b) => b.anomalyScore - a.anomalyScore)
+    .sort((a, b) => b.anomalyScore - a.anomalyScore);
 
   return (
     <main className="min-h-screen bg-background p-6">
@@ -23,22 +30,59 @@ export default function DashboardPage() {
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
             <p className="text-sm text-muted-foreground">Atlas Fintech Demo</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Finance Command Center</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Finance Command Center
+            </h1>
           </div>
-          <Button asChild>
-            <Link href="/agent">
-              Ask FinPilot Agent <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="outline">
+              <Link href="/transactions">Transactions</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/vendors">Vendors</Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/portfolio">Portfolio</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/agent">
+                Ask FinPilot Agent <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
-          <MetricCard title="Cash Balance" value={formatCurrency(metrics.cashBalance)} icon={<Wallet />} />
-          <MetricCard title="Monthly Burn" value={formatCurrency(metrics.monthlyBurn)} icon={<Flame />} />
-          <MetricCard title="Runway" value={`${metrics.runwayMonths} months`} icon={<LineChart />} />
-          <MetricCard title="Revenue" value={formatCurrency(metrics.revenueThisMonth)} icon={<Banknote />} />
-          <MetricCard title="Alerts" value={String(metrics.anomalyAlerts)} icon={<AlertTriangle />} />
-          <MetricCard title="Risk Score" value={`${metrics.portfolioRiskScore}/100`} icon={<LineChart />} />
+          <MetricCard
+            title="Cash Balance"
+            value={formatCurrency(metrics.cashBalance)}
+            icon={<Wallet />}
+          />
+          <MetricCard
+            title="Monthly Burn"
+            value={formatCurrency(metrics.monthlyBurn)}
+            icon={<Flame />}
+          />
+          <MetricCard
+            title="Runway"
+            value={`${metrics.runwayMonths} months`}
+            icon={<LineChart />}
+          />
+          <MetricCard
+            title="Revenue"
+            value={formatCurrency(metrics.revenueThisMonth)}
+            icon={<Banknote />}
+          />
+          <MetricCard
+            title="Alerts"
+            value={String(metrics.anomalyAlerts)}
+            icon={<AlertTriangle />}
+          />
+          <MetricCard
+            title="Risk Score"
+            value={`${metrics.portfolioRiskScore}/100`}
+            icon={<LineChart />}
+          />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-3">
@@ -49,15 +93,24 @@ export default function DashboardPage() {
             <CardContent>
               <div className="space-y-4">
                 {burnData.map((item) => (
-                  <div key={item.month} className="grid grid-cols-[48px_1fr_80px] items-center gap-3">
-                    <div className="text-sm text-muted-foreground">{item.month}</div>
+                  <div
+                    key={item.month}
+                    className="grid grid-cols-[48px_1fr_80px] items-center gap-3"
+                  >
+                    <div className="text-sm text-muted-foreground">
+                      {item.month}
+                    </div>
                     <div className="h-3 overflow-hidden rounded-full bg-muted">
                       <div
                         className="h-full rounded-full bg-primary"
-                        style={{ width: `${Math.min((item.burn / 25000) * 100, 100)}%` }}
+                        style={{
+                          width: `${Math.min((item.burn / 25000) * 100, 100)}%`,
+                        }}
                       />
                     </div>
-                    <div className="text-right text-sm">{formatCurrency(item.burn)}</div>
+                    <div className="text-right text-sm">
+                      {formatCurrency(item.burn)}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -73,9 +126,13 @@ export default function DashboardPage() {
                 <div key={alert.vendor} className="rounded-lg border p-4">
                   <div className="flex items-center justify-between">
                     <p className="font-medium">{alert.vendor}</p>
-                    <span className="text-sm text-red-500">{alert.anomalyScore}/100</span>
+                    <span className="text-sm text-red-500">
+                      {alert.anomalyScore}/100
+                    </span>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{alert.explanation}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {alert.explanation}
+                  </p>
                 </div>
               ))}
             </CardContent>
@@ -83,7 +140,7 @@ export default function DashboardPage() {
         </div>
       </div>
     </main>
-  )
+  );
 }
 
 function MetricCard({
@@ -91,9 +148,9 @@ function MetricCard({
   value,
   icon,
 }: {
-  title: string
-  value: string
-  icon: React.ReactNode
+  title: string;
+  value: string;
+  icon: React.ReactNode;
 }) {
   return (
     <Card>
@@ -105,5 +162,5 @@ function MetricCard({
         <p className="mt-1 text-xl font-semibold">{value}</p>
       </CardContent>
     </Card>
-  )
+  );
 }
