@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "next/link"
 import {
   AlertTriangle,
   ArrowRight,
@@ -6,34 +6,117 @@ import {
   Flame,
   LineChart,
   Wallet,
-} from "lucide-react";
-import { metrics, burnData, transactions } from "@/lib/mock-data";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+} from "lucide-react"
+import { prisma } from "@/lib/prisma"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value)
 }
 
-export default function DashboardPage() {
-  const topAlerts = transactions
+export default async function DashboardPage() {
+  const organization = await prisma.organization.findFirst({
+    include: {
+      accounts: true,
+      transactions: {
+        orderBy: {
+          date: "desc",
+        },
+        include: {
+          vendor: true,
+        },
+      },
+      alerts: {
+        orderBy: {
+          createdAt: "desc",
+        },
+      },
+      forecasts: true,
+      portfolios: {
+        include: {
+          holdings: true,
+        },
+      },
+    },
+  })
+
+  if (!organization) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background p-6">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>No demo data found</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Seed the database before viewing the dashboard.
+            </p>
+            <code className="block rounded-lg bg-muted p-3 text-sm">
+              npx prisma db seed
+            </code>
+          </CardContent>
+        </Card>
+      </main>
+    )
+  }
+
+  const operatingAccount = organization.accounts[0]
+  const baseForecast =
+    organization.forecasts.find((forecast) => forecast.scenario === "base") ??
+    organization.forecasts[0]
+
+  const revenueThisMonth = organization.transactions
+    .filter((transaction) => transaction.direction === "inflow")
+    .reduce((sum, transaction) => sum + transaction.amount, 0)
+
+  const monthlyBurn = Math.abs(
+    organization.transactions
+      .filter((transaction) => transaction.direction === "outflow")
+      .reduce((sum, transaction) => sum + transaction.amount, 0)
+  )
+
+  const anomalyAlerts = organization.transactions.filter(
+    (transaction) => transaction.anomalyScore > 50
+  ).length
+
+  const portfolio = organization.portfolios[0]
+  const holdings = portfolio?.holdings ?? []
+
+  const techExposure = holdings
+    .filter((holding) => holding.sector === "Technology")
+    .reduce((sum, holding) => sum + holding.allocationPercent, 0)
+
+  const portfolioRiskScore = Math.min(100, Math.round(techExposure * 1.6))
+
+  const topAlerts = organization.transactions
     .filter((transaction) => transaction.anomalyScore > 50)
-    .sort((a, b) => b.anomalyScore - a.anomalyScore);
+    .sort((a, b) => b.anomalyScore - a.anomalyScore)
+
+  const burnData = [
+    { month: "Jan", burn: 16200 },
+    { month: "Feb", burn: 17100 },
+    { month: "Mar", burn: 18400 },
+    { month: "Apr", burn: 19600 },
+    { month: "May", burn: 20500 },
+    { month: "Jun", burn: monthlyBurn },
+  ]
 
   return (
     <main className="min-h-screen bg-background p-6">
       <div className="mx-auto max-w-7xl space-y-6">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <p className="text-sm text-muted-foreground">Atlas Fintech Demo</p>
+            <p className="text-sm text-muted-foreground">{organization.name}</p>
             <h1 className="text-3xl font-semibold tracking-tight">
               Finance Command Center
             </h1>
           </div>
+
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline">
               <Link href="/transactions">Transactions</Link>
@@ -55,32 +138,32 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
           <MetricCard
             title="Cash Balance"
-            value={formatCurrency(metrics.cashBalance)}
+            value={formatCurrency(operatingAccount?.balance ?? 0)}
             icon={<Wallet />}
           />
           <MetricCard
             title="Monthly Burn"
-            value={formatCurrency(metrics.monthlyBurn)}
+            value={formatCurrency(monthlyBurn)}
             icon={<Flame />}
           />
           <MetricCard
             title="Runway"
-            value={`${metrics.runwayMonths} months`}
+            value={`${baseForecast?.projectedRunwayMonths ?? 0} months`}
             icon={<LineChart />}
           />
           <MetricCard
             title="Revenue"
-            value={formatCurrency(metrics.revenueThisMonth)}
+            value={formatCurrency(revenueThisMonth)}
             icon={<Banknote />}
           />
           <MetricCard
             title="Alerts"
-            value={String(metrics.anomalyAlerts)}
+            value={String(anomalyAlerts)}
             icon={<AlertTriangle />}
           />
           <MetricCard
             title="Risk Score"
-            value={`${metrics.portfolioRiskScore}/100`}
+            value={`${portfolioRiskScore}/100`}
             icon={<LineChart />}
           />
         </div>
@@ -88,7 +171,7 @@ export default function DashboardPage() {
         <div className="grid gap-4 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
-              <CardTitle>Burn vs Revenue</CardTitle>
+              <CardTitle>Burn Trend</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -123,15 +206,17 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {topAlerts.map((alert) => (
-                <div key={alert.vendor} className="rounded-lg border p-4">
+                <div key={alert.id} className="rounded-lg border p-4">
                   <div className="flex items-center justify-between">
-                    <p className="font-medium">{alert.vendor}</p>
+                    <p className="font-medium">
+                      {alert.vendor?.name ?? alert.description}
+                    </p>
                     <span className="text-sm text-red-500">
                       {alert.anomalyScore}/100
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    {alert.explanation}
+                    {alert.description}
                   </p>
                 </div>
               ))}
@@ -140,7 +225,7 @@ export default function DashboardPage() {
         </div>
       </div>
     </main>
-  );
+  )
 }
 
 function MetricCard({
@@ -148,9 +233,9 @@ function MetricCard({
   value,
   icon,
 }: {
-  title: string;
-  value: string;
-  icon: React.ReactNode;
+  title: string
+  value: string
+  icon: React.ReactNode
 }) {
   return (
     <Card>
@@ -162,5 +247,5 @@ function MetricCard({
         <p className="mt-1 text-xl font-semibold">{value}</p>
       </CardContent>
     </Card>
-  );
+  )
 }
