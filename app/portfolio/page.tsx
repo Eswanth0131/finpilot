@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { ArrowLeft, PieChart, ShieldAlert } from "lucide-react"
-import { holdings, metrics } from "@/lib/mock-data"
+import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -14,12 +14,43 @@ function formatCurrency(value: number) {
   }).format(value)
 }
 
-export default function PortfolioPage() {
-  const totalValue = holdings.reduce((sum, holding) => sum + holding.value, 0)
+export default async function PortfolioPage() {
+  const portfolio = await prisma.portfolio.findFirst({
+    include: {
+      holdings: {
+        orderBy: {
+          allocationPercent: "desc",
+        },
+      },
+      organization: true,
+    },
+  })
+
+  if (!portfolio) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-background p-6">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>No portfolio found</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Seed the database before viewing portfolio risk.
+            </p>
+          </CardContent>
+        </Card>
+      </main>
+    )
+  }
+
+  const holdings = portfolio.holdings
+  const totalValue = holdings.reduce((sum, holding) => sum + holding.currentValue, 0)
+
   const techExposure = holdings
     .filter((holding) => holding.sector === "Technology")
-    .reduce((sum, holding) => sum + holding.allocation, 0)
+    .reduce((sum, holding) => sum + holding.allocationPercent, 0)
 
+  const riskScore = Math.min(100, Math.round(techExposure * 1.6))
   const simulatedDrawdown = totalValue * (techExposure / 100) * 0.08
 
   return (
@@ -32,7 +63,10 @@ export default function PortfolioPage() {
               Back to dashboard
             </Link>
           </Button>
-          <h1 className="text-3xl font-semibold tracking-tight">Portfolio Risk Simulator</h1>
+          <p className="text-sm text-muted-foreground">{portfolio.organization.name}</p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Portfolio Risk Simulator
+          </h1>
           <p className="mt-2 text-muted-foreground">
             Analyze concentration risk, sector exposure, and downside scenarios.
           </p>
@@ -42,7 +76,9 @@ export default function PortfolioPage() {
           <Card>
             <CardContent className="p-6">
               <p className="text-sm text-muted-foreground">Portfolio Value</p>
-              <p className="mt-2 text-3xl font-semibold">{formatCurrency(totalValue)}</p>
+              <p className="mt-2 text-3xl font-semibold">
+                {formatCurrency(totalValue)}
+              </p>
             </CardContent>
           </Card>
 
@@ -56,7 +92,7 @@ export default function PortfolioPage() {
           <Card>
             <CardContent className="p-6">
               <p className="text-sm text-muted-foreground">Risk Score</p>
-              <p className="mt-2 text-3xl font-semibold">{metrics.portfolioRiskScore}/100</p>
+              <p className="mt-2 text-3xl font-semibold">{riskScore}/100</p>
             </CardContent>
           </Card>
         </div>
@@ -71,20 +107,24 @@ export default function PortfolioPage() {
             </CardHeader>
             <CardContent className="space-y-5">
               {holdings.map((holding) => (
-                <div key={holding.ticker} className="space-y-2">
+                <div key={holding.id} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">{holding.ticker}</p>
-                      <p className="text-sm text-muted-foreground">{holding.sector}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {holding.sector}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium">{holding.allocation}%</p>
+                      <p className="font-medium">
+                        {holding.allocationPercent}%
+                      </p>
                       <p className="text-sm text-muted-foreground">
-                        {formatCurrency(holding.value)}
+                        {formatCurrency(holding.currentValue)}
                       </p>
                     </div>
                   </div>
-                  <Progress value={holding.allocation} />
+                  <Progress value={holding.allocationPercent} />
                 </div>
               ))}
             </CardContent>

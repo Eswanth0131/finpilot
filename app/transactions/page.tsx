@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { ArrowLeft, AlertTriangle } from "lucide-react"
-import { transactions } from "@/lib/mock-data"
+import { prisma } from "@/lib/prisma"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,7 +27,18 @@ function riskVariant(score: number) {
   return "outline"
 }
 
-export default function TransactionsPage() {
+export default async function TransactionsPage() {
+  const transactions = await prisma.transaction.findMany({
+    orderBy: {
+      date: "desc",
+    },
+    include: {
+      vendor: true,
+      account: true,
+      organization: true,
+    },
+  })
+
   return (
     <main className="min-h-screen bg-background p-6">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -39,7 +50,9 @@ export default function TransactionsPage() {
                 Back to dashboard
               </Link>
             </Button>
-            <h1 className="text-3xl font-semibold tracking-tight">Transaction Intelligence</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Transaction Intelligence
+            </h1>
             <p className="mt-2 text-muted-foreground">
               Review cash inflows, outflows, anomaly scores, and explainable risk signals.
             </p>
@@ -57,6 +70,7 @@ export default function TransactionsPage() {
                   <TableHead>Date</TableHead>
                   <TableHead>Vendor</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Account</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Anomaly</TableHead>
                   <TableHead>Explanation</TableHead>
@@ -64,10 +78,19 @@ export default function TransactionsPage() {
               </TableHeader>
               <TableBody>
                 {transactions.map((transaction) => (
-                  <TableRow key={`${transaction.date}-${transaction.vendor}`}>
-                    <TableCell>{transaction.date}</TableCell>
-                    <TableCell className="font-medium">{transaction.vendor}</TableCell>
+                  <TableRow key={transaction.id}>
+                    <TableCell>
+                      {transaction.date.toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      })}
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      {transaction.vendor?.name ?? "Unknown"}
+                    </TableCell>
                     <TableCell>{transaction.category}</TableCell>
+                    <TableCell>{transaction.account.name}</TableCell>
                     <TableCell
                       className={`text-right font-medium ${
                         transaction.amount > 0 ? "text-emerald-600" : ""
@@ -85,7 +108,7 @@ export default function TransactionsPage() {
                         {transaction.anomalyScore >= 80 && (
                           <AlertTriangle className="mt-0.5 h-4 w-4 text-red-500" />
                         )}
-                        <span>{transaction.explanation}</span>
+                        <span>{transaction.description}</span>
                       </div>
                     </TableCell>
                   </TableRow>

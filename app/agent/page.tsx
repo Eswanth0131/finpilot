@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { ArrowLeft, Bot, Database, Sparkles } from "lucide-react"
+import { prisma } from "@/lib/prisma"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,7 +13,16 @@ const suggestedPrompts = [
   "Generate a CFO memo.",
 ]
 
-export default function AgentPage() {
+export default async function AgentPage() {
+  const latestAgentRun = await prisma.agentRun.findFirst({
+    orderBy: {
+      createdAt: "desc",
+    },
+    include: {
+      organization: true,
+    },
+  })
+
   return (
     <main className="min-h-screen bg-background p-6">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -85,27 +95,44 @@ export default function AgentPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Example Agent Response</CardTitle>
+            <CardTitle>Latest Stored Agent Response</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm leading-6">
-            <p>
-              Burn increased primarily because Google Ads rose 52%, AWS rose 38%, and one new
-              vendor created a $3,950 charge. These three items explain most of the
-              month-over-month increase in operating spend.
-            </p>
+            {latestAgentRun ? (
+              <>
+                <div className="rounded-lg border p-4">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    User query
+                  </p>
+                  <p className="mt-1 font-medium">{latestAgentRun.userQuery}</p>
+                </div>
 
-            <div className="rounded-lg border p-4">
-              <p className="font-medium">Recommended actions</p>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-                <li>Review Google Ads ROI before the next billing cycle.</li>
-                <li>Audit AWS usage for unused compute or database resources.</li>
-                <li>Investigate the unknown vendor charge before approval.</li>
-              </ul>
-            </div>
+                <p>{latestAgentRun.answer}</p>
 
-            <div className="rounded-lg bg-muted p-4 text-muted-foreground">
-              Records used: transactions, vendors, burn history, anomaly scores, runway forecast.
-            </div>
+                <div className="rounded-lg border p-4">
+                  <p className="font-medium">Audit metadata</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
+                    <li>Organization: {latestAgentRun.organization.name}</li>
+                    <li>Confidence: {Math.round(latestAgentRun.confidence * 100)}%</li>
+                    <li>
+                      Created:{" "}
+                      {latestAgentRun.createdAt.toLocaleString("en-US", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="rounded-lg bg-muted p-4 text-muted-foreground">
+                  Records used: {JSON.stringify(latestAgentRun.recordsUsed)}
+                </div>
+              </>
+            ) : (
+              <p className="text-muted-foreground">
+                No agent runs found. Seed the database or run an analysis.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
