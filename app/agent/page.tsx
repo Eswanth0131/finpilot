@@ -3,7 +3,7 @@ import { ArrowLeft, Bot, Database, Sparkles } from "lucide-react"
 import { prisma } from "@/lib/prisma"
 import { AgentClient } from "@/app/agent/agent-client"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export const dynamic = "force-dynamic"
 
@@ -13,6 +13,26 @@ export default async function AgentPage() {
       createdAt: "desc",
     },
   })
+
+  const recentAgentRuns = await prisma.agentRun.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: 5,
+  })
+
+  const initialAudit = latestAgentRun
+    ? {
+        model: process.env.BEDROCK_MODEL_ID ?? "us.amazon.nova-pro-v1:0",
+        database: "PostgreSQL / Aurora-compatible",
+        confidence: latestAgentRun.confidence,
+        recordsUsed: latestAgentRun.recordsUsed as {
+          tables?: string[]
+          highRiskTransactionCount?: number
+        },
+        createdAt: latestAgentRun.createdAt.toISOString(),
+      }
+    : undefined
 
   return (
     <main className="min-h-screen bg-background p-6">
@@ -65,7 +85,43 @@ export default async function AgentPage() {
           </Card>
         </div>
 
-        <AgentClient initialAnswer={latestAgentRun?.answer} />
+        <AgentClient
+          initialAnswer={latestAgentRun?.answer}
+          initialAudit={initialAudit}
+        />
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Agent Runs</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {recentAgentRuns.length > 0 ? (
+              recentAgentRuns.map((run) => (
+                <div key={run.id} className="rounded-lg border p-4">
+                  <div className="flex flex-col justify-between gap-2 md:flex-row md:items-center">
+                    <div>
+                      <p className="font-medium">{run.userQuery}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {run.answer.slice(0, 160)}
+                        {run.answer.length > 160 ? "..." : ""}
+                      </p>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(run.createdAt).toLocaleString("en-US", {
+                        dateStyle: "medium",
+                        timeStyle: "short",
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No agent runs yet.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </main>
   )

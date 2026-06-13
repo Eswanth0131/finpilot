@@ -167,9 +167,16 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({
-      answer,
-      agentRunId: agentRun.id,
-    })
+  answer,
+  agentRunId: agentRun.id,
+  audit: {
+    model: process.env.BEDROCK_MODEL_ID ?? "us.amazon.nova-pro-v1:0",
+    database: "PostgreSQL / Aurora-compatible",
+    confidence: agentRun.confidence,
+    recordsUsed: agentRun.recordsUsed,
+    createdAt: agentRun.createdAt,
+  },
+})
   } catch (error) {
   console.error("FinPilot agent error:", error)
 

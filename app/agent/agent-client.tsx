@@ -1,10 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Loader2 } from "lucide-react"
+import { CheckCircle2, Database, Loader2, Server, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 
 const suggestedPrompts = [
   "Why did burn increase this month?",
@@ -14,13 +15,27 @@ const suggestedPrompts = [
   "Generate a CFO memo.",
 ]
 
+type AgentAudit = {
+  model: string
+  database: string
+  confidence: number
+  recordsUsed: {
+    tables?: string[]
+    highRiskTransactionCount?: number
+  }
+  createdAt: string
+}
+
 export function AgentClient({
   initialAnswer,
+  initialAudit,
 }: {
   initialAnswer?: string
+  initialAudit?: AgentAudit
 }) {
   const [userQuery, setUserQuery] = useState("Why did burn increase this month?")
   const [answer, setAnswer] = useState(initialAnswer ?? "")
+  const [audit, setAudit] = useState<AgentAudit | undefined>(initialAudit)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
 
@@ -53,6 +68,7 @@ export function AgentClient({
       }
 
       setAnswer(data.answer)
+      setAudit(data.audit)
       setUserQuery(query)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.")
@@ -125,6 +141,76 @@ export function AgentClient({
           )}
         </CardContent>
       </Card>
+
+      {audit && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5" />
+              Agent Audit Trail
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="grid gap-3 md:grid-cols-3">
+              <div className="rounded-lg border p-4">
+                <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Server className="h-4 w-4" />
+                  Model
+                </div>
+                <p className="break-words text-sm font-medium">{audit.model}</p>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <Database className="h-4 w-4" />
+                  Database
+                </div>
+                <p className="text-sm font-medium">{audit.database}</p>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Confidence
+                </div>
+                <p className="text-sm font-medium">
+                  {Math.round(audit.confidence * 100)}%
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-muted p-4">
+              <p className="mb-3 text-sm font-medium">Database tables used</p>
+              <div className="flex flex-wrap gap-2">
+                {(audit.recordsUsed.tables ?? []).map((table) => (
+                  <Badge key={table} variant="secondary">
+                    {table}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid gap-3 text-sm md:grid-cols-2">
+              <div className="rounded-lg border p-4">
+                <p className="text-muted-foreground">High-risk transactions reviewed</p>
+                <p className="mt-1 font-medium">
+                  {audit.recordsUsed.highRiskTransactionCount ?? 0}
+                </p>
+              </div>
+
+              <div className="rounded-lg border p-4">
+                <p className="text-muted-foreground">Saved at</p>
+                <p className="mt-1 font-medium">
+                  {new Date(audit.createdAt).toLocaleString("en-US", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
