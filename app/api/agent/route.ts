@@ -171,13 +171,16 @@ export async function POST(request: Request) {
       agentRunId: agentRun.id,
     })
   } catch (error) {
-    console.error(error)
+  console.error("FinPilot agent error:", error)
 
-    return NextResponse.json(
-      {
-        error: "Failed to run FinPilot agent.",
-      },
-      { status: 500 }
-    )
-  }
+  const message =
+    error instanceof Error ? error.message : "Unknown server error"
+
+  return NextResponse.json(
+    {
+      error: message,
+    },
+    { status: 500 }
+  )
+}
 }

@@ -13,6 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+export const dynamic = "force-dynamic"
+
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
